@@ -61,9 +61,13 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -77,14 +81,13 @@ public class Camera2VideoFragment extends Fragment
       new SparseIntArray();
   private static final SparseIntArray INVERSE_ORIENTATIONS =
       new SparseIntArray();
+  private static final Queue<Size> CAPTURE_VIDEO_RESOLUTIONS = new LinkedList<>();
 
   private static final int REQUEST_VIDEO_PERMISSIONS = 1;
   private static final String FRAGMENT_DIALOG = "dialog";
   private static final long RECORDING_DURATION_TIME_MS = 800;
   private static final int PREVIEW_WIDTH = 1280;
   private static final int PREVIEW_HEIGHT = 720;
-  private static final int VIDEO_WIDTH = 720;
-  private static final int VIDEO_HEIGHT = 480;
   private static final int HIGH_FPS_FRAMERATE = 240;
   private static final int VIDEO_ENCODING_BITRATE_BPS = 20000000;
 
@@ -105,6 +108,12 @@ public class Camera2VideoFragment extends Fragment
     INVERSE_ORIENTATIONS.append(Surface.ROTATION_90, 180);
     INVERSE_ORIENTATIONS.append(Surface.ROTATION_180, 90);
     INVERSE_ORIENTATIONS.append(Surface.ROTATION_270, 0);
+  }
+
+  static {
+    CAPTURE_VIDEO_RESOLUTIONS.add(new Size(640, 480));
+    CAPTURE_VIDEO_RESOLUTIONS.add(new Size(720, 480));
+    CAPTURE_VIDEO_RESOLUTIONS.add(new Size(1280, 720));
   }
 
   private AutoFitTextureView mTextureView;
@@ -421,6 +430,33 @@ public class Camera2VideoFragment extends Fragment
     return true;
   }
 
+  private Size getHighSpeedResolution(final Size[] highSpeedVideoResolutions) {
+    if (highSpeedVideoResolutions == null) {
+      throw new NullPointerException("High speed resolutions list is null");
+    }
+    if (highSpeedVideoResolutions.length == 0) {
+      throw new IllegalArgumentException("Empty high speed resolutions list");
+    }
+    Iterator<Size> iterator = CAPTURE_VIDEO_RESOLUTIONS.iterator();
+    final List<Size> availableResolutions = Arrays.asList(highSpeedVideoResolutions);
+    while (iterator.hasNext()) {
+      final Size res = iterator.next();
+      if (availableResolutions.contains(res)) {
+        Log.d(
+            TAG,
+            "Capture video resolution: " + res.getWidth() + "x" +
+                res.getHeight());
+        return res;
+      }
+    }
+    final Size res = highSpeedVideoResolutions[0];
+    Log.e(
+        TAG,
+        "Capture video resolution not found, use default: " + res.getWidth() +
+            "x" + res.getHeight());
+    return res;
+  }
+
   @SuppressWarnings("MissingPermission")
   private void openCamera(int width, int height) {
     if (!hasPermissionsGranted(VIDEO_PERMISSIONS)) {
@@ -449,13 +485,16 @@ public class Camera2VideoFragment extends Fragment
           CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
       mAvailableFps = map.getHighSpeedVideoFpsRanges();
+      final Size highSpeedRes = getHighSpeedResolution(map.getHighSpeedVideoSizes());
 
       StreamConfigurationMap configs = characteristics.get(
           CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
       Size[] sizes = configs.getOutputSizes(MediaCodec.class);
 
       mCameraSize = getRequestedVideoSize(
-          map.getOutputSizes(SurfaceTexture.class), VIDEO_WIDTH, VIDEO_HEIGHT);
+          map.getOutputSizes(SurfaceTexture.class),
+          highSpeedRes.getWidth(),
+          highSpeedRes.getHeight());
 
       mSensorOrientation =
           characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
