@@ -81,8 +81,10 @@ public class Camera2VideoFragment extends Fragment
   private static final int REQUEST_VIDEO_PERMISSIONS = 1;
   private static final String FRAGMENT_DIALOG = "dialog";
   private static final long RECORDING_DURATION_TIME_MS = 800;
-  private static final int REQUESTED_WIDTH = 1280;
-  private static final int REQUESTED_HEIGHT = 720;
+  private static final int PREVIEW_WIDTH = 1280;
+  private static final int PREVIEW_HEIGHT = 720;
+  private static final int VIDEO_WIDTH = 720;
+  private static final int VIDEO_HEIGHT = 480;
   private static final int HIGH_FPS_FRAMERATE = 240;
   private static final int VIDEO_ENCODING_BITRATE_BPS = 20000000;
 
@@ -247,12 +249,12 @@ public class Camera2VideoFragment extends Fragment
 
   private static Size
   chooseOptimalSize(Size[] choices, int width, int height, Size aspectRatio) {
-    final int requestedWidth = REQUESTED_WIDTH;
-    final int requestedHeight = REQUESTED_HEIGHT;
+    final int previewWidth = PREVIEW_WIDTH;
+    final int previewHeight = PREVIEW_HEIGHT;
 
     for (Size choice : choices) {
-      if (requestedHeight == choice.getHeight() &&
-          requestedWidth == choice.getWidth()) {
+      if (previewHeight == choice.getHeight() &&
+          previewWidth == choice.getWidth()) {
         Log.i(
             TAG,
             "Preview Video size: " + choice.getWidth() + "x" +
@@ -261,7 +263,7 @@ public class Camera2VideoFragment extends Fragment
       }
     }
 
-    Log.e(TAG, "Couldn't find size: " + requestedWidth + "x" + requestedHeight);
+    Log.e(TAG, "Couldn't find size: " + previewWidth + "x" + previewHeight);
 
     // If not working, choosee optimal size: collect the supported resolutions
     // that are at least as big as the preview Surface
@@ -450,9 +452,7 @@ public class Camera2VideoFragment extends Fragment
       Size[] sizes = configs.getOutputSizes(MediaCodec.class);
 
       mCameraSize = getRequestedVideoSize(
-          map.getOutputSizes(SurfaceTexture.class),
-          REQUESTED_WIDTH,
-          REQUESTED_HEIGHT);
+          map.getOutputSizes(SurfaceTexture.class), VIDEO_WIDTH, VIDEO_HEIGHT);
 
       mSensorOrientation =
           characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
