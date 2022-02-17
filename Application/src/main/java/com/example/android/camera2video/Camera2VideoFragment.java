@@ -191,6 +191,8 @@ public class Camera2VideoFragment extends Fragment
       final long durationTimeSec = intent.getLongExtra(
           CameraIntents.Actions.DURATION_TIME_SEC,
           CameraIntents.Constants.DURATION_TIME_INVALID);
+      final String recordingFilename =
+          intent.getStringExtra(CameraIntents.Actions.RECORDING_FILENAME);
 
       final long recordingTimeoutMillis =
           durationTimeSec == CameraIntents.Constants.DURATION_TIME_INVALID
@@ -202,7 +204,8 @@ public class Camera2VideoFragment extends Fragment
       if (CameraIntents.Extras.START.equals(recordingEvent)) {
         if (!mIsRecordingVideo) {
           Log.i(TAG, "Start recording: ok");
-          startRecordingVideo(recordingTimeoutMillis);
+          startRecordingVideo(
+              createVideoFile(recordingFilename), recordingTimeoutMillis);
         } else {
           Log.e(TAG, "Start recording: failed, already recording");
         }
@@ -638,13 +641,14 @@ public class Camera2VideoFragment extends Fragment
     mTextureView.setTransform(matrix);
   }
 
-  private String getVideoFileName() {
+  private String createVideoFile(String videoName) {
     final String videoPath =
         Environment
             .getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             .getAbsolutePath();
-    final String videoName =
-        "latency_record" + System.currentTimeMillis() + ".mp4";
+    if (videoName == null || videoName.isEmpty()) {
+      videoName = "latency_record" + System.currentTimeMillis() + ".mp4";
+    }
     mOutputVideoFile = new File(videoPath, videoName);
 
     if (mOutputVideoFile.exists()) {
@@ -653,7 +657,8 @@ public class Camera2VideoFragment extends Fragment
     return mOutputVideoFile.getAbsolutePath();
   }
 
-  private void setUpMediaRecorder() throws IOException {
+  private void setUpMediaRecorder(final String recordingFilename)
+      throws IOException {
     final Activity activity = getActivity();
     if (null == activity) {
       return;
@@ -662,7 +667,7 @@ public class Camera2VideoFragment extends Fragment
     mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
     mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
 
-    mMediaRecorder.setOutputFile(getVideoFileName());
+    mMediaRecorder.setOutputFile(recordingFilename);
     mMediaRecorder.setVideoEncodingBitRate(VIDEO_ENCODING_BITRATE_BPS);
     mMediaRecorder.setVideoFrameRate(HIGH_FPS_FRAMERATE);
 
@@ -684,7 +689,9 @@ public class Camera2VideoFragment extends Fragment
     mMediaRecorder.prepare();
   }
 
-  private void startRecordingVideo(final long timeoutMillis) {
+  private void startRecordingVideo(
+      final String recordingFilename,
+      final long timeoutMillis) {
     mIsRecordingVideo = true;
     if (null == mCameraDevice || !mTextureView.isAvailable() ||
         null == mPreviewSize) {
@@ -693,7 +700,7 @@ public class Camera2VideoFragment extends Fragment
     Log.i(TAG, "Recording time " + timeoutMillis + " ms");
     try {
       closePreviewSession();
-      setUpMediaRecorder();
+      setUpMediaRecorder(recordingFilename);
       SurfaceTexture texture = mTextureView.getSurfaceTexture();
       assert texture != null;
       texture.setDefaultBufferSize(
