@@ -1,6 +1,6 @@
 # Camera2Video
 
-App for recording high fps video. Only pixel 2 device supported
+App for recording high fps video. Only pixel devices supported
 
 ## Build
 ```
