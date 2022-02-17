@@ -88,7 +88,7 @@ public class Camera2VideoFragment extends Fragment
   private static final long RECORDING_DURATION_TIME_MS = 800;
   private static final int PREVIEW_WIDTH = 1280;
   private static final int PREVIEW_HEIGHT = 720;
-  private static final int HIGH_FPS_FRAMERATE = 240;
+  private static final int HIGH_FPS_FRAMERATE = 30;
   private static final int VIDEO_ENCODING_BITRATE_BPS = 20000000;
 
   private static final String[] VIDEO_PERMISSIONS = {
@@ -111,15 +111,16 @@ public class Camera2VideoFragment extends Fragment
   }
 
   static {
-    CAPTURE_VIDEO_RESOLUTIONS.add(new Size(640, 480));
-    CAPTURE_VIDEO_RESOLUTIONS.add(new Size(720, 480));
+    //CAPTURE_VIDEO_RESOLUTIONS.add(new Size(640, 480));
+    //CAPTURE_VIDEO_RESOLUTIONS.add(new Size(720, 480));
     CAPTURE_VIDEO_RESOLUTIONS.add(new Size(1280, 720));
   }
 
   private AutoFitTextureView mTextureView;
   private CameraDevice mCameraDevice;
   private CameraCaptureSession mPreviewSession;
-  private CameraConstrainedHighSpeedCaptureSession mPreviewSessionHighSpeed;
+  private CameraCaptureSession mCaptureSession;
+  //private CameraConstrainedHighSpeedCaptureSession mPreviewSessionHighSpeed;
   private Size mCameraSize;
   private Size mPreviewSize;
   private Size mVideoSize;
@@ -603,11 +604,14 @@ public class Camera2VideoFragment extends Fragment
 
       if (mIsRecordingVideo) {
         setUpCaptureRequestBuilder(mPreviewBuilder);
-        List<CaptureRequest> mPreviewBuilderBurst =
-            mPreviewSessionHighSpeed.createHighSpeedRequestList(
-                mPreviewBuilder.build());
-        mPreviewSessionHighSpeed.setRepeatingBurst(
-            mPreviewBuilderBurst, null, mBackgroundHandler);
+        //List<CaptureRequest> mPreviewBuilderBurst =
+        //    mPreviewSessionHighSpeed.createHighSpeedRequestList(
+        //        mPreviewBuilder.build());
+        //mPreviewSessionHighSpeed.setRepeatingBurst(
+        //    mPreviewBuilderBurst, null, mBackgroundHandler);
+      mCaptureSession.setRepeatingRequest(mPreviewBuilder.build(),
+          null, mBackgroundHandler);
+
       } else {
         mPreviewSession.setRepeatingRequest(
             mPreviewBuilder.build(), null, mBackgroundHandler);
@@ -646,8 +650,8 @@ public class Camera2VideoFragment extends Fragment
   }
 
   private void setUpCaptureRequestBuilder(CaptureRequest.Builder builder) {
-    Range<Integer> fpsRange = getHighestFpsRange(mAvailableFps);
-    builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange);
+   // Range<Integer> fpsRange = getHighestFpsRange(mAvailableFps);
+   // builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange);
   }
 
   // Configures the necessary {@link android.graphics.Matrix} transformation to
@@ -686,7 +690,7 @@ public class Camera2VideoFragment extends Fragment
             .getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             .getAbsolutePath();
     if (videoName == null || videoName.isEmpty()) {
-      videoName = "latency_record" + System.currentTimeMillis() + ".mp4";
+      videoName = "recording" + System.currentTimeMillis() + ".mp4";
     }
     mOutputVideoFile = new File(videoPath, videoName);
 
@@ -760,14 +764,14 @@ public class Camera2VideoFragment extends Fragment
 
       // Start a capture session
       // Once the session starts, we can update the UI and start recording
-      mCameraDevice.createConstrainedHighSpeedCaptureSession(
+      //mCameraDevice.createConstrainedHighSpeedCaptureSession(
+      mCameraDevice.createCaptureSession(
           surfaces, new CameraCaptureSession.StateCallback() {
             @Override
             public void onConfigured(
                 @NonNull CameraCaptureSession cameraCaptureSession) {
               mPreviewSession = cameraCaptureSession;
-              mPreviewSessionHighSpeed =
-                  (CameraConstrainedHighSpeedCaptureSession)mPreviewSession;
+              mCaptureSession = mPreviewSession;
               updatePreview();
               getActivity().runOnUiThread(new Runnable() {
                 @Override
