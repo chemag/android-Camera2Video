@@ -766,7 +766,7 @@ public class Camera2VideoFragment extends Fragment
     Activity activity = getActivity();
     if (null != activity) {
       Toast.makeText(activity, "Video recorded", Toast.LENGTH_SHORT).show();
-      Log.d(TAG, "Video recorded");
+      Log.i(TAG, "Video recorded");
     }
     startPreview();
   }
