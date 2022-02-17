@@ -807,6 +807,10 @@ public class Camera2VideoFragment extends Fragment
 
   private void stopRecordingVideo() {
     mIsRecordingVideo = false;
+
+    mMediaRecorder.pause();
+    closePreviewSession(); // Close the session before we stop the MediaRecorder and kill the input surface.
+
     mMediaRecorder.stop();
     mMediaRecorder.reset();
     Activity activity = getActivity();
