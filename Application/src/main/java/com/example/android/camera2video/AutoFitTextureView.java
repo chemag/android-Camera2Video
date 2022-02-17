@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.example.android.camera2video;
 
 import android.content.Context;
@@ -21,7 +20,6 @@ import android.util.AttributeSet;
 import android.view.TextureView;
 
 public class AutoFitTextureView extends TextureView {
-
   private int mRatioWidth = 0;
   private int mRatioHeight = 0;
 
@@ -54,11 +52,11 @@ public class AutoFitTextureView extends TextureView {
     if (0 == mRatioWidth || 0 == mRatioHeight) {
       setMeasuredDimension(width, height);
     } else {
-        if (width < height * mRatioWidth / mRatioHeight) {
-          setMeasuredDimension(width, width * mRatioHeight / mRatioWidth);
-        } else {
-          setMeasuredDimension(height * mRatioWidth / mRatioHeight, height);
-        }
+      if (width < height * mRatioWidth / mRatioHeight) {
+        setMeasuredDimension(width, width * mRatioHeight / mRatioWidth);
+      } else {
+        setMeasuredDimension(height * mRatioWidth / mRatioHeight, height);
+      }
     }
   }
 }

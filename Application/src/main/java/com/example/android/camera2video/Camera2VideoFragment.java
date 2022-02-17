@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.example.android.camera2video;
 
 import android.Manifest;
@@ -69,23 +68,27 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 public class Camera2VideoFragment extends Fragment
-        implements View.OnClickListener, FragmentCompat.OnRequestPermissionsResultCallback {
-
+    implements View.OnClickListener,
+               FragmentCompat.OnRequestPermissionsResultCallback {
+  private static final String TAG = Camera2VideoFragment.class.getSimpleName();
   private static final int SENSOR_ORIENTATION_DEFAULT_DEGREES = 90;
   private static final int SENSOR_ORIENTATION_INVERSE_DEGREES = 270;
-  private static final SparseIntArray DEFAULT_ORIENTATIONS = new SparseIntArray();
-  private static final SparseIntArray INVERSE_ORIENTATIONS = new SparseIntArray();
+  private static final SparseIntArray DEFAULT_ORIENTATIONS =
+      new SparseIntArray();
+  private static final SparseIntArray INVERSE_ORIENTATIONS =
+      new SparseIntArray();
 
-  private static final String TAG = "Camera2VideoFragment";
   private static final int REQUEST_VIDEO_PERMISSIONS = 1;
   private static final String FRAGMENT_DIALOG = "dialog";
-  private static final long stopTimeout_ms = 800;
-  private static final int mRequestedWidth = 1280;
-  private static final int mRequestedHeight = 720;
+  private static final long RECORDING_DURATION_TIME_MS = 800;
+  private static final int REQUESTED_WIDTH = 1280;
+  private static final int REQUESTED_HEIGHT = 720;
+  private static final int HIGH_FPS_FRAMERATE = 240;
+  private static final int VIDEO_ENCODING_BITRATE_BPS = 20000000;
 
   private static final String[] VIDEO_PERMISSIONS = {
-    Manifest.permission.CAMERA,
-    Manifest.permission.RECORD_AUDIO,
+      Manifest.permission.CAMERA,
+      Manifest.permission.RECORD_AUDIO,
   };
 
   static {
@@ -102,94 +105,95 @@ public class Camera2VideoFragment extends Fragment
     INVERSE_ORIENTATIONS.append(Surface.ROTATION_270, 0);
   }
 
-  private AutoFitTextureView   mTextureView;
-  private CameraDevice         mCameraDevice;
+  private AutoFitTextureView mTextureView;
+  private CameraDevice mCameraDevice;
   private CameraCaptureSession mPreviewSession;
   private CameraConstrainedHighSpeedCaptureSession mPreviewSessionHighSpeed;
-  private Size                 mCameraSize;
-  private Size                 mPreviewSize;
-  private Size                 mVideoSize;
-  private MediaRecorder        mMediaRecorder;
-  private boolean              mIsRecordingVideo;
-  private HandlerThread        mBackgroundThread;
-  private Handler              mBackgroundHandler;
-  private final Semaphore      mCameraOpenCloseLock = new Semaphore(1);
-  private Range<Integer>[]     mAvailableFps;
-  private Integer              mSensorOrientation;
+  private Size mCameraSize;
+  private Size mPreviewSize;
+  private Size mVideoSize;
+  private MediaRecorder mMediaRecorder;
+  private boolean mIsRecordingVideo;
+  private HandlerThread mBackgroundThread;
+  private Handler mBackgroundHandler;
+  private final Semaphore mCameraOpenCloseLock = new Semaphore(1);
+  private Range<Integer>[] mAvailableFps;
+  private Integer mSensorOrientation;
   private CaptureRequest.Builder mPreviewBuilder;
-  private IntentFilter         mRecordIntent;
-  private File                 mOutputVideoFile;
-  private final TextureView.SurfaceTextureListener mSurfaceTextureListener
-          = new TextureView.SurfaceTextureListener() {
+  private IntentFilter mRecordIntent;
+  private File mOutputVideoFile;
 
-    @Override
-    public void onSurfaceTextureAvailable(
-      SurfaceTexture surfaceTexture,
-      int width,
-      int height) {
-      openCamera(width, height);
-    }
+  private final TextureView.SurfaceTextureListener mSurfaceTextureListener =
+      new TextureView.SurfaceTextureListener() {
+        @Override
+        public void onSurfaceTextureAvailable(
+            SurfaceTexture surfaceTexture, int width, int height) {
+          openCamera(width, height);
+        }
 
-    @Override
-    public void onSurfaceTextureSizeChanged(
-      SurfaceTexture surfaceTexture,
-      int width,
-      int height) {
-      configureTransform(width, height);
-    }
+        @Override
+        public void onSurfaceTextureSizeChanged(
+            SurfaceTexture surfaceTexture, int width, int height) {
+          configureTransform(width, height);
+        }
 
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
-      return true;
-    }
+        @Override
+        public boolean onSurfaceTextureDestroyed(
+            SurfaceTexture surfaceTexture) {
+          return true;
+        }
 
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {}
-  };
+        @Override
+        public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {}
+      };
 
-  private final CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
-    @Override
-    public void onOpened(@NonNull CameraDevice cameraDevice) {
-      mCameraDevice = cameraDevice;
-      startPreview();
-      mCameraOpenCloseLock.release();
-      if (null != mTextureView) {
-        configureTransform(mTextureView.getWidth(), mTextureView.getHeight());
-      }
-    }
+  private final CameraDevice.StateCallback mStateCallback =
+      new CameraDevice.StateCallback() {
+        @Override
+        public void onOpened(@NonNull CameraDevice cameraDevice) {
+          mCameraDevice = cameraDevice;
+          startPreview();
+          mCameraOpenCloseLock.release();
+          if (null != mTextureView) {
+            configureTransform(
+                mTextureView.getWidth(), mTextureView.getHeight());
+          }
+        }
 
-    @Override
-    public void onDisconnected(@NonNull CameraDevice cameraDevice) {
-      mCameraOpenCloseLock.release();
-      cameraDevice.close();
-      mCameraDevice = null;
-    }
+        @Override
+        public void onDisconnected(@NonNull CameraDevice cameraDevice) {
+          mCameraOpenCloseLock.release();
+          cameraDevice.close();
+          mCameraDevice = null;
+        }
 
-    @Override
-    public void onError(@NonNull CameraDevice cameraDevice, int error) {
-      mCameraOpenCloseLock.release();
-      cameraDevice.close();
-      mCameraDevice = null;
-      Activity activity = getActivity();
-      if (null != activity) {
-        activity.finish();
-      }
-    }
-  };
+        @Override
+        public void onError(@NonNull CameraDevice cameraDevice, int error) {
+          mCameraOpenCloseLock.release();
+          cameraDevice.close();
+          mCameraDevice = null;
+          Activity activity = getActivity();
+          if (null != activity) {
+            activity.finish();
+          }
+        }
+      };
 
   private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
     @Override
     public void onReceive(Context context, Intent intent) {
       Log.i(TAG, "Broadcast received");
 
-      final String recordingEvent = intent.getStringExtra(CameraIntents.Actions.RECORDING);
-      final long durationTimeSec =
-              intent.getLongExtra(CameraIntents.Actions.DURATION_TIME_SEC,
-                      CameraIntents.Constants.DURATION_TIME_INVALID);
+      final String recordingEvent =
+          intent.getStringExtra(CameraIntents.Actions.RECORDING);
+      final long durationTimeSec = intent.getLongExtra(
+          CameraIntents.Actions.DURATION_TIME_SEC,
+          CameraIntents.Constants.DURATION_TIME_INVALID);
 
       final long recordingTimeoutMillis =
-              durationTimeSec == CameraIntents.Constants.DURATION_TIME_INVALID ? stopTimeout_ms :
-                      TimeUnit.SECONDS.toMillis(durationTimeSec);
+          durationTimeSec == CameraIntents.Constants.DURATION_TIME_INVALID
+          ? RECORDING_DURATION_TIME_MS
+          : TimeUnit.SECONDS.toMillis(durationTimeSec);
 
       Log.i(TAG, "Receive event: " + recordingEvent);
 
@@ -214,23 +218,25 @@ public class Camera2VideoFragment extends Fragment
   }
 
   // choose a video size with 3x4 aspect ratio. Also, we don't use sizes
-  // larger than 1080p, since MediaRecorder cannot handle such a high-resolution video.
+  // larger than 1080p, since MediaRecorder cannot handle such a high-resolution
+  // video.
   private static Size chooseVideoSize(Size[] availableSizes) {
     for (Size size : availableSizes) {
-      if (size.getWidth() == size.getHeight() * 4 / 3 && size.getWidth() <= 1080) {
-          return size;
+      if (size.getWidth() == size.getHeight() * 4 / 3 &&
+          size.getWidth() <= 1080) {
+        return size;
       }
     }
     Log.e(TAG, "Couldn't find any suitable video size");
     return availableSizes[availableSizes.length - 1];
   }
 
-  private static Size getRequestedVideoSize(Size[] choices, int width, int height)
-  {
+  private static Size
+  getRequestedVideoSize(Size[] choices, int width, int height) {
     for (Size choice : choices) {
-      if (height == choice.getHeight() &&
-            width == choice.getWidth()) {
-        Log.i(TAG, "Video size: " + choice.getWidth() + "x" + choice.getHeight());
+      if (height == choice.getHeight() && width == choice.getWidth()) {
+        Log.i(
+            TAG, "Video size: " + choice.getWidth() + "x" + choice.getHeight());
         return choice;
       }
     }
@@ -239,44 +245,42 @@ public class Camera2VideoFragment extends Fragment
     return choices[choices.length - 1];
   }
 
-  private static Size chooseOptimalSize(
-    Size[] choices,
-    int width,
-    int height,
-    Size aspectRatio) {
+  private static Size
+  chooseOptimalSize(Size[] choices, int width, int height, Size aspectRatio) {
+    final int requestedWidth = REQUESTED_WIDTH;
+    final int requestedHeight = REQUESTED_HEIGHT;
 
-     // try to run 1280x720
-     final int requestedWidth = mRequestedWidth;
-     final int requestedHeight = mRequestedHeight;
-
-     for (Size choice : choices) {
-       if (requestedHeight == choice.getHeight() &&
-             requestedWidth == choice.getWidth()) {
-         Log.i(TAG, "Preview Video size: " + choice.getWidth() + "x" + choice.getHeight());
-         return choice;
-       }
-     }
-
-     Log.e(TAG, "Couldn't find size: " + requestedWidth + "x" + requestedHeight);
-
-      // If not working, choosee optimal size: collect the supported resolutions
-      // that are at least as big as the preview Surface
-      List<Size> bigEnough = new ArrayList<>();
-      int w = aspectRatio.getWidth();
-      int h = aspectRatio.getHeight();
-      for (Size option : choices) {
-          if (option.getHeight() == option.getWidth() * h / w &&
-                  option.getWidth() >= width && option.getHeight() >= height) {
-              bigEnough.add(option);
-          }
+    for (Size choice : choices) {
+      if (requestedHeight == choice.getHeight() &&
+          requestedWidth == choice.getWidth()) {
+        Log.i(
+            TAG,
+            "Preview Video size: " + choice.getWidth() + "x" +
+                choice.getHeight());
+        return choice;
       }
+    }
 
-      // Pick the smallest of those, assuming we found any
-      if (bigEnough.size() > 0) {
-        return Collections.min(bigEnough, new CompareSizesByArea());
-      } else {
-        Log.e(TAG, "Couldn't find any suitable preview size");
-        return choices[0];
+    Log.e(TAG, "Couldn't find size: " + requestedWidth + "x" + requestedHeight);
+
+    // If not working, choosee optimal size: collect the supported resolutions
+    // that are at least as big as the preview Surface
+    List<Size> bigEnough = new ArrayList<>();
+    int w = aspectRatio.getWidth();
+    int h = aspectRatio.getHeight();
+    for (Size option : choices) {
+      if (option.getHeight() == option.getWidth() * h / w &&
+          option.getWidth() >= width && option.getHeight() >= height) {
+        bigEnough.add(option);
+      }
+    }
+
+    // Pick the smallest of those, assuming we found any
+    if (bigEnough.size() > 0) {
+      return Collections.min(bigEnough, new CompareSizesByArea());
+    } else {
+      Log.e(TAG, "Couldn't find any suitable preview size");
+      return choices[0];
     }
   }
 
@@ -289,15 +293,15 @@ public class Camera2VideoFragment extends Fragment
 
   @Override
   public View onCreateView(
-    LayoutInflater inflater,
-    ViewGroup container,
-    Bundle savedInstanceState) {
+      LayoutInflater inflater,
+      ViewGroup container,
+      Bundle savedInstanceState) {
     return inflater.inflate(R.layout.fragment_camera2_video, container, false);
   }
 
   @Override
   public void onViewCreated(final View view, Bundle savedInstanceState) {
-    mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
+    mTextureView = (AutoFitTextureView)view.findViewById(R.id.texture);
     view.findViewById(R.id.info).setOnClickListener(this);
   }
 
@@ -326,9 +330,9 @@ public class Camera2VideoFragment extends Fragment
         Activity activity = getActivity();
         if (null != activity) {
           new AlertDialog.Builder(activity)
-            .setMessage(R.string.intro_message)
-            .setPositiveButton(android.R.string.ok, null)
-            .show();
+              .setMessage(R.string.intro_message)
+              .setPositiveButton(android.R.string.ok, null)
+              .show();
         }
         break;
       }
@@ -336,10 +340,10 @@ public class Camera2VideoFragment extends Fragment
   }
 
   @Override
-   public void onDestroy() {
-     super.onDestroy();
-     getActivity().unregisterReceiver(mBroadcastReceiver);
-   }
+  public void onDestroy() {
+    super.onDestroy();
+    getActivity().unregisterReceiver(mBroadcastReceiver);
+  }
 
   private void startBackgroundThread() {
     mBackgroundThread = new HandlerThread("CameraBackground");
@@ -350,9 +354,9 @@ public class Camera2VideoFragment extends Fragment
   private void stopBackgroundThread() {
     mBackgroundThread.quitSafely();
     try {
-        mBackgroundThread.join();
-        mBackgroundThread = null;
-        mBackgroundHandler = null;
+      mBackgroundThread.join();
+      mBackgroundThread = null;
+      mBackgroundHandler = null;
     } catch (InterruptedException e) {
       Log.e(TAG, Log.getStackTraceString(e));
     }
@@ -361,7 +365,8 @@ public class Camera2VideoFragment extends Fragment
   // Gets whether you should show UI with rationale for requesting permissions.
   private boolean shouldShowRequestPermissionRationale(String[] permissions) {
     for (String permission : permissions) {
-      if (FragmentCompat.shouldShowRequestPermissionRationale(this, permission)) {
+      if (FragmentCompat.shouldShowRequestPermissionRationale(
+              this, permission)) {
         return true;
       }
     }
@@ -372,38 +377,39 @@ public class Camera2VideoFragment extends Fragment
     if (shouldShowRequestPermissionRationale(VIDEO_PERMISSIONS)) {
       new ConfirmationDialog().show(getChildFragmentManager(), FRAGMENT_DIALOG);
     } else {
-      FragmentCompat.requestPermissions(this, VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
+      FragmentCompat.requestPermissions(
+          this, VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
     }
   }
 
   @Override
   public void onRequestPermissionsResult(
-    int requestCode,
-    @NonNull String[] permissions,
-    @NonNull int[] grantResults) {
+      int requestCode,
+      @NonNull String[] permissions,
+      @NonNull int[] grantResults) {
     Log.d(TAG, "onRequestPermissionsResult");
     if (requestCode == REQUEST_VIDEO_PERMISSIONS) {
       if (grantResults.length == VIDEO_PERMISSIONS.length) {
         for (int result : grantResults) {
           if (result != PackageManager.PERMISSION_GRANTED) {
             ErrorDialog.newInstance(getString(R.string.permission_request))
-              .show(getChildFragmentManager(), FRAGMENT_DIALOG);
-                break;
-            }
-          }
-        } else {
-          ErrorDialog.newInstance(getString(R.string.permission_request))
                 .show(getChildFragmentManager(), FRAGMENT_DIALOG);
+            break;
+          }
         }
+      } else {
+        ErrorDialog.newInstance(getString(R.string.permission_request))
+            .show(getChildFragmentManager(), FRAGMENT_DIALOG);
+      }
     } else {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+      super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
   }
 
   private boolean hasPermissionsGranted(String[] permissions) {
     for (String permission : permissions) {
-      if (ActivityCompat.checkSelfPermission(getActivity(), permission)
-            != PackageManager.PERMISSION_GRANTED) {
+      if (ActivityCompat.checkSelfPermission(getActivity(), permission) !=
+          PackageManager.PERMISSION_GRANTED) {
         return false;
       }
     }
@@ -413,71 +419,74 @@ public class Camera2VideoFragment extends Fragment
   @SuppressWarnings("MissingPermission")
   private void openCamera(int width, int height) {
     if (!hasPermissionsGranted(VIDEO_PERMISSIONS)) {
-        requestVideoPermissions();
-        return;
+      requestVideoPermissions();
+      return;
     }
     final Activity activity = getActivity();
     if (null == activity || activity.isFinishing()) {
-        return;
+      return;
     }
-    CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
+    CameraManager manager =
+        (CameraManager)activity.getSystemService(Context.CAMERA_SERVICE);
 
     try {
       Log.d(TAG, "tryAcquire");
       if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
-          throw new RuntimeException("Time out waiting to lock camera opening.");
+        throw new RuntimeException("Time out waiting to lock camera opening.");
       }
       String cameraId = manager.getCameraIdList()[0];
 
       // Choose the sizes for camera preview and video recording
-      CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+      CameraCharacteristics characteristics =
+          manager.getCameraCharacteristics(cameraId);
 
-      StreamConfigurationMap map = characteristics
-              .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+      StreamConfigurationMap map = characteristics.get(
+          CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
       mAvailableFps = map.getHighSpeedVideoFpsRanges();
 
       StreamConfigurationMap configs = characteristics.get(
-              CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+          CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
       Size[] sizes = configs.getOutputSizes(MediaCodec.class);
 
       mCameraSize = getRequestedVideoSize(
           map.getOutputSizes(SurfaceTexture.class),
-          mRequestedWidth,
-          mRequestedHeight);
+          REQUESTED_WIDTH,
+          REQUESTED_HEIGHT);
 
-      mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+      mSensorOrientation =
+          characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
       if (map == null) {
         throw new RuntimeException("Cannot get available preview/video sizes");
       }
       mVideoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder.class));
-
       mPreviewSize = chooseOptimalSize(
-          map.getOutputSizes(SurfaceTexture.class),
-          width,
-          height,
-          mVideoSize);
+          map.getOutputSizes(SurfaceTexture.class), width, height, mVideoSize);
 
       int orientation = getResources().getConfiguration().orientation;
       if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-        mTextureView.setAspectRatio(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+        mTextureView.setAspectRatio(
+            mPreviewSize.getWidth(), mPreviewSize.getHeight());
       } else {
-        mTextureView.setAspectRatio(mPreviewSize.getHeight(), mPreviewSize.getWidth());
+        mTextureView.setAspectRatio(
+            mPreviewSize.getHeight(), mPreviewSize.getWidth());
       }
       configureTransform(width, height);
       mMediaRecorder = new MediaRecorder();
 
       manager.openCamera(cameraId, mStateCallback, null);
     } catch (CameraAccessException e) {
-        Toast.makeText(activity, "Cannot access the camera.", Toast.LENGTH_SHORT).show();
-        activity.finish();
+      Toast.makeText(activity, "Cannot access the camera.", Toast.LENGTH_SHORT)
+          .show();
+      activity.finish();
     } catch (NullPointerException e) {
-        // Currently an NPE is thrown when the Camera2API is used but not supported on the
-        // device this code runs.
-        ErrorDialog.newInstance(getString(R.string.camera_error))
-                .show(getChildFragmentManager(), FRAGMENT_DIALOG);
+      // Currently an NPE is thrown when the Camera2API is used but not
+      // supported on the device this code runs.
+      ErrorDialog.newInstance(getString(R.string.camera_error))
+          .show(getChildFragmentManager(), FRAGMENT_DIALOG);
     } catch (InterruptedException e) {
-        throw new RuntimeException("Interrupted while trying to lock camera opening.");
+      throw new RuntimeException(
+          "Interrupted while trying to lock camera opening.");
     }
   }
 
@@ -486,37 +495,41 @@ public class Camera2VideoFragment extends Fragment
       mCameraOpenCloseLock.acquire();
       closePreviewSession();
       if (null != mCameraDevice) {
-          mCameraDevice.close();
-          mCameraDevice = null;
+        mCameraDevice.close();
+        mCameraDevice = null;
       }
       if (null != mMediaRecorder) {
-          mMediaRecorder.release();
-          mMediaRecorder = null;
+        mMediaRecorder.release();
+        mMediaRecorder = null;
       }
     } catch (InterruptedException e) {
-        throw new RuntimeException("Interrupted while trying to lock camera closing.");
+      throw new RuntimeException(
+          "Interrupted while trying to lock camera closing.");
     } finally {
       mCameraOpenCloseLock.release();
     }
   }
 
   private void startPreview() {
-    if (null == mCameraDevice || !mTextureView.isAvailable() || null == mPreviewSize) {
+    if (null == mCameraDevice || !mTextureView.isAvailable() ||
+        null == mPreviewSize) {
       return;
     }
     try {
       closePreviewSession();
       SurfaceTexture texture = mTextureView.getSurfaceTexture();
       assert texture != null;
-      texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
-      mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+      texture.setDefaultBufferSize(
+          mPreviewSize.getWidth(), mPreviewSize.getHeight());
+      mPreviewBuilder =
+          mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
 
       Surface previewSurface = new Surface(texture);
       mPreviewBuilder.addTarget(previewSurface);
 
       mCameraDevice.createCaptureSession(
-        Collections.singletonList(previewSurface),
-        new CameraCaptureSession.StateCallback() {
+          Collections.singletonList(previewSurface),
+          new CameraCaptureSession.StateCallback() {
             @Override
             public void onConfigured(@NonNull CameraCaptureSession session) {
               mPreviewSession = session;
@@ -524,17 +537,18 @@ public class Camera2VideoFragment extends Fragment
             }
 
             @Override
-            public void onConfigureFailed(@NonNull CameraCaptureSession session) {
+            public void onConfigureFailed(
+                @NonNull CameraCaptureSession session) {
               Activity activity = getActivity();
               if (null != activity) {
                 Toast.makeText(activity, "Failed", Toast.LENGTH_SHORT).show();
               }
             }
           },
-        mBackgroundHandler);
-      } catch (CameraAccessException e) {
-        Log.e(TAG, Log.getStackTraceString(e));
-      }
+          mBackgroundHandler);
+    } catch (CameraAccessException e) {
+      Log.e(TAG, Log.getStackTraceString(e));
+    }
   }
 
   private void updatePreview() {
@@ -548,19 +562,16 @@ public class Camera2VideoFragment extends Fragment
       if (mIsRecordingVideo) {
         setUpCaptureRequestBuilder(mPreviewBuilder);
         List<CaptureRequest> mPreviewBuilderBurst =
-        mPreviewSessionHighSpeed.createHighSpeedRequestList(mPreviewBuilder.build());
+            mPreviewSessionHighSpeed.createHighSpeedRequestList(
+                mPreviewBuilder.build());
         mPreviewSessionHighSpeed.setRepeatingBurst(
-            mPreviewBuilderBurst,
-            null,
-            mBackgroundHandler);
+            mPreviewBuilderBurst, null, mBackgroundHandler);
       } else {
         mPreviewSession.setRepeatingRequest(
-            mPreviewBuilder.build(),
-            null,
-            mBackgroundHandler);
+            mPreviewBuilder.build(), null, mBackgroundHandler);
       }
     } catch (CameraAccessException e) {
-        Log.e(TAG, Log.getStackTraceString(e));
+      Log.e(TAG, Log.getStackTraceString(e));
     }
   }
 
@@ -569,8 +580,10 @@ public class Camera2VideoFragment extends Fragment
 
     // find max sum of fps ranges (min, max), for pixel shuld be: [240,240]
     for (Range<Integer> fpsValue : fpsRanges) {
-      final int maxLower = Integer.parseInt(currentFpsMax.getLower().toString());
-      final int maxUpper = Integer.parseInt(currentFpsMax.getUpper().toString());
+      final int maxLower =
+          Integer.parseInt(currentFpsMax.getLower().toString());
+      final int maxUpper =
+          Integer.parseInt(currentFpsMax.getUpper().toString());
 
       final int actualLower = Integer.parseInt(fpsValue.getLower().toString());
       final int actualUpper = Integer.parseInt(fpsValue.getUpper().toString());
@@ -583,14 +596,17 @@ public class Camera2VideoFragment extends Fragment
       }
     }
 
-    Log.i(TAG, "Max Fps : " + currentFpsMax.getLower() + " " + currentFpsMax.getUpper());
+    Log.i(
+        TAG,
+        "Max Fps : " + currentFpsMax.getLower() + " " +
+            currentFpsMax.getUpper());
     return currentFpsMax;
   }
 
-    private void setUpCaptureRequestBuilder(CaptureRequest.Builder builder) {
-      Range<Integer> fpsRange = getHighestFpsRange(mAvailableFps);
-      builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange);
-    }
+  private void setUpCaptureRequestBuilder(CaptureRequest.Builder builder) {
+    Range<Integer> fpsRange = getHighestFpsRange(mAvailableFps);
+    builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange);
+  }
 
   // Configures the necessary {@link android.graphics.Matrix} transformation to
   // {@link mTextureView}. This method should not to be called until the camera
@@ -601,28 +617,34 @@ public class Camera2VideoFragment extends Fragment
     if (null == mTextureView || null == mPreviewSize || null == activity) {
       return;
     }
-    int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+    int rotation =
+        activity.getWindowManager().getDefaultDisplay().getRotation();
     Matrix matrix = new Matrix();
     RectF viewRect = new RectF(0, 0, viewWidth, viewHeight);
-    RectF bufferRect = new RectF(0, 0, mPreviewSize.getHeight(), mPreviewSize.getWidth());
+    RectF bufferRect =
+        new RectF(0, 0, mPreviewSize.getHeight(), mPreviewSize.getWidth());
     float centerX = viewRect.centerX();
     float centerY = viewRect.centerY();
     if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-        bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
-        matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
-        float scale = Math.max(
-                (float) viewHeight / mPreviewSize.getHeight(),
-                (float) viewWidth / mPreviewSize.getWidth());
-        matrix.postScale(scale, scale, centerX, centerY);
-        matrix.postRotate(90 * (rotation - 2), centerX, centerY);
+      bufferRect.offset(
+          centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
+      matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
+      float scale = Math.max(
+          (float)viewHeight / mPreviewSize.getHeight(),
+          (float)viewWidth / mPreviewSize.getWidth());
+      matrix.postScale(scale, scale, centerX, centerY);
+      matrix.postRotate(90 * (rotation - 2), centerX, centerY);
     }
     mTextureView.setTransform(matrix);
   }
 
   private String getVideoFileName() {
-    final String videoPath = Environment.getExternalStoragePublicDirectory(
-      Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
-    final String videoName = "latency_record" + System.currentTimeMillis() + ".mp4";
+    final String videoPath =
+        Environment
+            .getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            .getAbsolutePath();
+    final String videoName =
+        "latency_record" + System.currentTimeMillis() + ".mp4";
     mOutputVideoFile = new File(videoPath, videoName);
 
     if (mOutputVideoFile.exists()) {
@@ -641,14 +663,16 @@ public class Camera2VideoFragment extends Fragment
     mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
 
     mMediaRecorder.setOutputFile(getVideoFileName());
-    mMediaRecorder.setVideoEncodingBitRate(20000000);
-    mMediaRecorder.setVideoFrameRate(240);
+    mMediaRecorder.setVideoEncodingBitRate(VIDEO_ENCODING_BITRATE_BPS);
+    mMediaRecorder.setVideoFrameRate(HIGH_FPS_FRAMERATE);
 
-    mMediaRecorder.setVideoSize(mCameraSize.getWidth(), mCameraSize.getHeight());
+    mMediaRecorder.setVideoSize(
+        mCameraSize.getWidth(), mCameraSize.getHeight());
     mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
     mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
 
-    int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+    int rotation =
+        activity.getWindowManager().getDefaultDisplay().getRotation();
     switch (mSensorOrientation) {
       case SENSOR_ORIENTATION_DEFAULT_DEGREES:
         mMediaRecorder.setOrientationHint(DEFAULT_ORIENTATIONS.get(rotation));
@@ -662,8 +686,9 @@ public class Camera2VideoFragment extends Fragment
 
   private void startRecordingVideo(final long timeoutMillis) {
     mIsRecordingVideo = true;
-    if (null == mCameraDevice || !mTextureView.isAvailable() || null == mPreviewSize) {
-        return;
+    if (null == mCameraDevice || !mTextureView.isAvailable() ||
+        null == mPreviewSize) {
+      return;
     }
     Log.i(TAG, "Recording time " + timeoutMillis + " ms");
     try {
@@ -671,8 +696,10 @@ public class Camera2VideoFragment extends Fragment
       setUpMediaRecorder();
       SurfaceTexture texture = mTextureView.getSurfaceTexture();
       assert texture != null;
-      texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
-      mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+      texture.setDefaultBufferSize(
+          mPreviewSize.getWidth(), mPreviewSize.getHeight());
+      mPreviewBuilder =
+          mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
       List<Surface> surfaces = new ArrayList<>();
 
       // Set up Surface for the camera preview
@@ -688,40 +715,40 @@ public class Camera2VideoFragment extends Fragment
       // Start a capture session
       // Once the session starts, we can update the UI and start recording
       mCameraDevice.createConstrainedHighSpeedCaptureSession(
-        surfaces,
-        new CameraCaptureSession.StateCallback() {
-        @Override
-        public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-            mPreviewSession = cameraCaptureSession;
-            mPreviewSessionHighSpeed = (CameraConstrainedHighSpeedCaptureSession) mPreviewSession;
-            updatePreview();
-            getActivity().runOnUiThread(new Runnable() {
-              @Override
-              public void run() {
-                mMediaRecorder.start();
+          surfaces, new CameraCaptureSession.StateCallback() {
+            @Override
+            public void onConfigured(
+                @NonNull CameraCaptureSession cameraCaptureSession) {
+              mPreviewSession = cameraCaptureSession;
+              mPreviewSessionHighSpeed =
+                  (CameraConstrainedHighSpeedCaptureSession)mPreviewSession;
+              updatePreview();
+              getActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                  mMediaRecorder.start();
 
-                new Handler().postDelayed(
-                    new Runnable() {
+                  new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
                       stopRecordingVideo();
                     }
-                }, timeoutMillis);
-              }
-            });
-          }
-
-          @Override
-          public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-            Activity activity = getActivity();
-            if (null != activity) {
-              Toast.makeText(activity, "Failed", Toast.LENGTH_SHORT).show();
+                  }, timeoutMillis);
+                }
+              });
             }
-          }
-        },
-            mBackgroundHandler);
+
+            @Override
+            public void onConfigureFailed(
+                @NonNull CameraCaptureSession cameraCaptureSession) {
+              Activity activity = getActivity();
+              if (null != activity) {
+                Toast.makeText(activity, "Failed", Toast.LENGTH_SHORT).show();
+              }
+            }
+          }, mBackgroundHandler);
     } catch (CameraAccessException | IOException e) {
-        Log.e(TAG, Log.getStackTraceString(e));
+      Log.e(TAG, Log.getStackTraceString(e));
     }
   }
 
@@ -738,10 +765,7 @@ public class Camera2VideoFragment extends Fragment
     mMediaRecorder.reset();
     Activity activity = getActivity();
     if (null != activity) {
-      Toast.makeText(
-          activity,
-          "Video recorded",
-          Toast.LENGTH_SHORT).show();
+      Toast.makeText(activity, "Video recorded", Toast.LENGTH_SHORT).show();
       Log.d(TAG, "Video recorded");
     }
     startPreview();
@@ -751,8 +775,9 @@ public class Camera2VideoFragment extends Fragment
     @Override
     public int compare(Size lhs, Size rhs) {
       // We cast here to ensure the multiplications won't overflow
-      return Long.signum((long) lhs.getWidth() * lhs.getHeight() -
-              (long) rhs.getWidth() * rhs.getHeight());
+      return Long.signum(
+          (long)lhs.getWidth() * lhs.getHeight() -
+          (long)rhs.getWidth() * rhs.getHeight());
     }
   }
 
@@ -771,42 +796,43 @@ public class Camera2VideoFragment extends Fragment
     public Dialog onCreateDialog(Bundle savedInstanceState) {
       final Activity activity = getActivity();
       return new AlertDialog.Builder(activity)
-        .setMessage(getArguments().getString(ARG_MESSAGE))
-        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                activity.finish();
-            }
-        })
-        .create();
+          .setMessage(getArguments().getString(ARG_MESSAGE))
+          .setPositiveButton(
+              android.R.string.ok,
+              new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                  activity.finish();
+                }
+              })
+          .create();
     }
   }
 
   public static class ConfirmationDialog extends DialogFragment {
-
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
       final Fragment parent = getParentFragment();
       return new AlertDialog.Builder(getActivity())
-              .setMessage(R.string.permission_request)
-              .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                  @Override
-                  public void onClick(DialogInterface dialog, int which) {
-                      FragmentCompat.requestPermissions(
-                          parent,
-                          VIDEO_PERMISSIONS,
-                          REQUEST_VIDEO_PERMISSIONS);
-                  }
+          .setMessage(R.string.permission_request)
+          .setPositiveButton(
+              android.R.string.ok,
+              new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                  FragmentCompat.requestPermissions(
+                      parent, VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
+                }
               })
-              .setNegativeButton(
-          android.R.string.cancel,
-          new DialogInterface.OnClickListener() {
-                          @Override
-                          public void onClick(DialogInterface dialog, int which) {
-                              parent.getActivity().finish();
-                          }
-                      })
-              .create();
+          .setNegativeButton(
+              android.R.string.cancel,
+              new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                  parent.getActivity().finish();
+                }
+              })
+          .create();
     }
   }
 }

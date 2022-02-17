@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.example.android.camera2video;
 
 import android.Manifest;
@@ -24,38 +23,29 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 
 public class CameraActivity extends Activity {
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_camera);
     if (null == savedInstanceState) {
       getFragmentManager()
-      .beginTransaction()
-      .replace(R.id.container, Camera2VideoFragment.newInstance())
-      .commit();
+          .beginTransaction()
+          .replace(R.id.container, Camera2VideoFragment.newInstance())
+          .commit();
     }
 
     if (ContextCompat.checkSelfPermission(
-      this,
-      Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        != PackageManager.PERMISSION_GRANTED) {
-          ActivityCompat.requestPermissions(
-              this,
-              new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE
-              },
-              1);
+            this, Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+        PackageManager.PERMISSION_GRANTED) {
+      ActivityCompat.requestPermissions(
+          this, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
     }
 
     if (ContextCompat.checkSelfPermission(
-        this,
-        Manifest.permission.READ_EXTERNAL_STORAGE)
-        != PackageManager.PERMISSION_GRANTED) {
-          ActivityCompat.requestPermissions(
-              this,
-              new String[]{Manifest.permission.READ_EXTERNAL_STORAGE
-              },
-              2);
+            this, Manifest.permission.READ_EXTERNAL_STORAGE) !=
+        PackageManager.PERMISSION_GRANTED) {
+      ActivityCompat.requestPermissions(
+          this, new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, 2);
     }
   }
 }
