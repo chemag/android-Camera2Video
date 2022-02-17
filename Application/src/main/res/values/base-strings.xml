@@ -16,14 +16,14 @@
 -->
 
 <resources>
-    <string name="app_name">Camera2Video</string>
-    <string name="intro_message">
-        <![CDATA[
-        
-            
-            This sample demonstrates how to record video using Camera2 API.
-            
-        
-        ]]>
-    </string>
+    <string
+      name="app_name"
+      description="app name"
+      project="aloha"
+      >Camera2Video</string>
+    <string
+      name="intro_message"
+      description="intro message"
+      project="aloha"
+      >This sample demonstrates how to record video using Camera2 API.</string>
 </resources>

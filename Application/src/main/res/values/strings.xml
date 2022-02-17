@@ -1,8 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="record">Record</string>
-    <string name="stop">Stop</string>
-    <string name="description_info">Info</string>
-    <string name="permission_request">This sample needs permission for camera and audio recording.</string>
-    <string name="camera_error">This device doesn\'t support Camera2 API.</string>
+    <string
+      name="record"
+      description="record"
+      project="aloha"
+      >Record</string>
+    <string name="stop"
+      description="stop"
+      project="aloha"
+      >Stop</string>
+    <string
+      name="description_info"
+      description="description info"
+      project="aloha"
+      >Info</string>
+    <string
+      name="permission_request"
+      description="permission request"
+      project="aloha"
+      >This sample needs permission for camera and audio recording.</string>
+    <string
+      name="camera_error"
+      description="camera error"
+      project="aloha"
+      >This device doesn\'t support Camera2 API.</string>
 </resources>

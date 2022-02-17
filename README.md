@@ -1,7 +1,21 @@
+# Camera2Video
 
-Android Camera2Video Sample
-===========================
+App for recording high fps video. Only pixel 2 device supported
 
-This repo has been migrated to [github.com/android/camera][1]. Please check that repo for future updates. Thank you!
+## Build
+```
+$ cd ~/proj/android-Camera2Video
+$ ./gradlew build
+```
 
-[1]: https://github.com/android/camera
+## Install
+```
+$ ./gradlew installDebug
+```
+
+## Recording
+```
+$ adb shell am broadcast -a com.example.camera2video.RECORD_SLOW_MOTION --es RECORDING start
+```
+
+
