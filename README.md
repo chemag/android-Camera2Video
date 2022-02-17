@@ -15,7 +15,7 @@ $ ./gradlew installDebug
 
 ## Recording
 ```
-$ adb shell am broadcast -a com.example.camera2video.RECORD_SLOW_MOTION --es RECORDING start
+$ adb shell am broadcast -a com.example.android.camera2video.RECORD_SLOW_MOTION --es RECORDING start
 ```
 
 

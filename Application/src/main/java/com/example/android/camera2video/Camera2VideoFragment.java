@@ -617,7 +617,7 @@ public class Camera2VideoFragment extends Fragment
     final String videoName = "latency_record" + System.currentTimeMillis() + ".mp4";
     mOutputVideoFile = new File(videoPath, videoName);
 
-    if (outputVideoFile.exists()) {
+    if (mOutputVideoFile.exists()) {
       mOutputVideoFile.delete();
     }
     return mOutputVideoFile.getAbsolutePath();
@@ -731,7 +731,7 @@ public class Camera2VideoFragment extends Fragment
       mMediaRecorder.stop();
       mMediaRecorder.reset();
     } catch (RuntimeException e) {
-      if (outputVideoFile.exists()) {
+      if (mOutputVideoFile.exists()) {
         mOutputVideoFile.delete();
       }
     } finally {
