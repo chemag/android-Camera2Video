@@ -79,7 +79,7 @@ public class Camera2VideoFragment extends Fragment
   private static final String TAG = "Camera2VideoFragment";
   private static final int REQUEST_VIDEO_PERMISSIONS = 1;
   private static final String FRAGMENT_DIALOG = "dialog";
-  private static final int stopTimeout_ms = 800;
+  private static final long stopTimeout_ms = 800;
   private static final int mRequestedWidth = 1280;
   private static final int mRequestedHeight = 720;
 
@@ -183,12 +183,20 @@ public class Camera2VideoFragment extends Fragment
       Log.i(TAG, "Broadcast received");
 
       final String recordingEvent = intent.getStringExtra(CameraIntents.Actions.RECORDING);
+      final long durationTimeSec =
+              intent.getLongExtra(CameraIntents.Actions.DURATION_TIME_SEC,
+                      CameraIntents.Constants.DURATION_TIME_INVALID);
+
+      final long recordingTimeoutMillis =
+              durationTimeSec == CameraIntents.Constants.DURATION_TIME_INVALID ? stopTimeout_ms :
+                      TimeUnit.SECONDS.toMillis(durationTimeSec);
+
       Log.i(TAG, "Receive event: " + recordingEvent);
 
       if (CameraIntents.Extras.START.equals(recordingEvent)) {
         if (!mIsRecordingVideo) {
           Log.i(TAG, "Start recording: ok");
-          startRecordingVideo();
+          startRecordingVideo(recordingTimeoutMillis);
         } else {
           Log.e(TAG, "Start recording: failed, already recording");
         }
@@ -652,11 +660,12 @@ public class Camera2VideoFragment extends Fragment
     mMediaRecorder.prepare();
   }
 
-  private void startRecordingVideo() {
+  private void startRecordingVideo(final long timeoutMillis) {
     mIsRecordingVideo = true;
     if (null == mCameraDevice || !mTextureView.isAvailable() || null == mPreviewSize) {
         return;
     }
+    Log.i(TAG, "Recording time " + timeoutMillis + " ms");
     try {
       closePreviewSession();
       setUpMediaRecorder();
@@ -697,8 +706,7 @@ public class Camera2VideoFragment extends Fragment
                     public void run() {
                       stopRecordingVideo();
                     }
-                },
-                stopTimeout_ms);
+                }, timeoutMillis);
               }
             });
           }
@@ -726,17 +734,8 @@ public class Camera2VideoFragment extends Fragment
 
   private void stopRecordingVideo() {
     mIsRecordingVideo = false;
-
-    try {
-      mMediaRecorder.stop();
-      mMediaRecorder.reset();
-    } catch (RuntimeException e) {
-      if (mOutputVideoFile.exists()) {
-        mOutputVideoFile.delete();
-      }
-    } finally {
-      mMediaRecorder.release();
-    }
+    mMediaRecorder.stop();
+    mMediaRecorder.reset();
     Activity activity = getActivity();
     if (null != activity) {
       Toast.makeText(
