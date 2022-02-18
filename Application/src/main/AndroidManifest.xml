@@ -38,7 +38,7 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name="com.hmkcode.android.CameraEventReceiver" >
+        <receiver android:name="com.example.android.CameraEventReceiver" >
           <intent-filter>
             <action android:name="com.example.android.camera2video.RECORD_SLOW_MOTION" />
           </intent-filter>
