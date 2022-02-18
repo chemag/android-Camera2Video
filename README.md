@@ -19,7 +19,8 @@ $ adb shell am broadcast -a com.example.android.camera2video.RECORD_SLOW_MOTION 
 $ adb shell am broadcast -a com.example.android.camera2video.RECORD_SLOW_MOTION \
     --es RECORDING start \
     --el DURATION_TIME_SEC 2 \
-    --es RECORDING_FILENAME recording.mp4
+    --es RECORDING_FILENAME recording.mp4 \
+    --ei CAPTURE_FPS 30
 ```
 
 

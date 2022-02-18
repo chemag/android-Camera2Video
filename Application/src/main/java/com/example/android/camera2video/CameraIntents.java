@@ -8,8 +8,9 @@ public class CameraIntents {
   }
 
   public static class Actions {
-    public static final String RECORDING = "RECORDING";
+    public static final String CAPTURE_FPS = "CAPTURE_FPS";
     public static final String DURATION_TIME_SEC = "DURATION_TIME_SEC";
+    public static final String RECORDING = "RECORDING";
     public static final String RECORDING_FILENAME = "RECORDING_FILENAME";
   }
 
