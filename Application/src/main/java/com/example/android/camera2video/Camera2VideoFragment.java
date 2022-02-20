@@ -205,6 +205,14 @@ public class Camera2VideoFragment extends Fragment
           intent.getStringExtra(CameraIntents.Actions.RECORDING_FILENAME);
       final int captureFps =
           intent.getIntExtra(CameraIntents.Actions.CAPTURE_FPS, CAPTURE_FPS);
+      final int captureVideoHeight =
+          intent.getIntExtra(
+              CameraIntents.Actions.CAPTURE_VIDEO_HEIGHT,
+              CameraIntents.Constants.CAPTURE_VIDEO_SIZE_INVALID);
+      final int captureVideoWidth =
+          intent.getIntExtra(
+              CameraIntents.Actions.CAPTURE_VIDEO_WIDTH,
+              CameraIntents.Constants.CAPTURE_VIDEO_SIZE_INVALID);
 
       final long recordingTimeoutMillis =
           durationTimeSec == CameraIntents.Constants.DURATION_TIME_INVALID
@@ -217,7 +225,11 @@ public class Camera2VideoFragment extends Fragment
         if (!mIsRecordingVideo) {
           Log.i(TAG, "Start recording: ok");
           startRecordingVideo(
-              createVideoFile(recordingFilename), captureFps, recordingTimeoutMillis);
+              createVideoFile(recordingFilename),
+              captureFps,
+              captureVideoHeight,
+              captureVideoWidth,
+              recordingTimeoutMillis);
         } else {
           Log.e(TAG, "Start recording: failed, already recording");
         }
@@ -702,8 +714,11 @@ public class Camera2VideoFragment extends Fragment
     return mOutputVideoFile.getAbsolutePath();
   }
 
-  private void setUpMediaRecorder(final String recordingFilename, final int captureFps)
-      throws IOException {
+  private void setUpMediaRecorder(
+      final String recordingFilename,
+      final int captureFps,
+      final int captureVideoWidth,
+      final int captureVideoHeight) throws IOException {
     final Activity activity = getActivity();
     if (null == activity) {
       return;
@@ -717,8 +732,15 @@ public class Camera2VideoFragment extends Fragment
     Log.i(TAG, "Capture fps " + captureFps);
     mMediaRecorder.setVideoFrameRate(captureFps);
 
-    mMediaRecorder.setVideoSize(
-        mCameraSize.getWidth(), mCameraSize.getHeight());
+    int width = mCameraSize.getWidth();
+    int height = mCameraSize.getHeight();
+    if (captureVideoWidth != CameraIntents.Constants.CAPTURE_VIDEO_SIZE_INVALID &&
+      captureVideoHeight != CameraIntents.Constants.CAPTURE_VIDEO_SIZE_INVALID) {
+      width = captureVideoWidth;
+      height = captureVideoHeight;
+    }
+    Log.i(TAG, "Capture resolution: " + captureVideoWidth + "x" + captureVideoHeight);
+    mMediaRecorder.setVideosize(width, height);
     mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
     mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
 
@@ -738,6 +760,8 @@ public class Camera2VideoFragment extends Fragment
   private void startRecordingVideo(
       final String recordingFilename,
       final int captureFps,
+      final int captureVideoHeight,
+      final int captureVideoWidth,
       final long timeoutMillis) {
     mIsRecordingVideo = true;
     if (null == mCameraDevice || !mTextureView.isAvailable() ||
@@ -747,7 +771,11 @@ public class Camera2VideoFragment extends Fragment
     Log.i(TAG, "Recording time " + timeoutMillis + " ms");
     try {
       closePreviewSession();
-      setUpMediaRecorder(recordingFilename, captureFps);
+      setUpMediaRecorder(
+          recordingFilename,
+          captureFps,
+          captureVideoHeight,
+          captureVideoWidth);
       SurfaceTexture texture = mTextureView.getSurfaceTexture();
       assert texture != null;
       texture.setDefaultBufferSize(

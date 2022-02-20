@@ -79,12 +79,15 @@ $ adb shell am broadcast \
     --es RECORDING start
 ```
 
-Example 2: record to a specific filename, for 2 seconds, and using 30 fps.
+Example 2: record to a specific filename, for 2 seconds, 1280x720 resolution
+and using 30 fps.
 ```
 $ adb shell am broadcast \
     -a com.example.android.camera2video.RECORD_SLOW_MOTION \
     --es RECORDING start \
     --el DURATION_TIME_SEC 2 \
     --es RECORDING_FILENAME foo.mp4 \
+    --ei CAPTURE_VIDEO_WIDTH 1280 \
+    --ei CAPTURE_VIDEO_HEIGHT 720 \
     --ei CAPTURE_FPS 30
 ```
