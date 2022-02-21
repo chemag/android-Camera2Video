@@ -505,13 +505,13 @@ public class Camera2VideoFragment extends Fragment
       StreamConfigurationMap map = characteristics.get(
           CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
+      mAvailableResolutions = configs.getOutputSizes(MediaCodec.class);
+      Log.i(TAG, "Available capture resolutions: " + Arrays.toString(mAvailableResolutions));
       mAvailableHighSpeedFps = map.getHighSpeedVideoFpsRanges();
-      final Size highSpeedRes = getHighSpeedResolution(map.getHighSpeedVideoSizes());
+      final Size highSpeedRes = getHighSpeedResolution(mAvailableResolutions);
 
       StreamConfigurationMap configs = characteristics.get(
           CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-      mAvailableResolutions = configs.getOutputSizes(MediaCodec.class);
-      Log.i(TAG, "Available capture resolutions: " + Arrays.toString(mAvailableResolutions));
 
       mCameraSize = getRequestedVideoSize(
           map.getOutputSizes(SurfaceTexture.class),
