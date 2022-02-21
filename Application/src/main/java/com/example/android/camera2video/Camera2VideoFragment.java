@@ -740,7 +740,7 @@ public class Camera2VideoFragment extends Fragment
       height = captureVideoHeight;
     }
     Log.i(TAG, "Capture resolution: " + captureVideoWidth + "x" + captureVideoHeight);
-    mMediaRecorder.setVideosize(width, height);
+    mMediaRecorder.setVideoSize(width, height);
     mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
     mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
 
