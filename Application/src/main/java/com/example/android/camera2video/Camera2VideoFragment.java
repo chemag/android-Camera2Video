@@ -129,6 +129,7 @@ public class Camera2VideoFragment extends Fragment
   private HandlerThread mBackgroundThread;
   private Handler mBackgroundHandler;
   private final Semaphore mCameraOpenCloseLock = new Semaphore(1);
+  private Range<Integer>[] mAvailableHighSpeedFps;
   private Range<Integer>[] mAvailableFps;
   private Integer mSensorOrientation;
   private CaptureRequest.Builder mPreviewBuilder;
@@ -496,10 +497,14 @@ public class Camera2VideoFragment extends Fragment
       CameraCharacteristics characteristics =
           manager.getCameraCharacteristics(cameraId);
 
+      mAvailableFps = characteristics.get(
+          CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+      Log.i(TAG, "Fps available: " + Arrays.toString(mAvailableFps));
+
       StreamConfigurationMap map = characteristics.get(
           CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
-      mAvailableFps = map.getHighSpeedVideoFpsRanges();
+      mAvailableHighSpeedFps = map.getHighSpeedVideoFpsRanges();
       final Size highSpeedRes = getHighSpeedResolution(map.getHighSpeedVideoSizes());
 
       StreamConfigurationMap configs = characteristics.get(
@@ -638,7 +643,7 @@ public class Camera2VideoFragment extends Fragment
   private Range<Integer> getHighestFpsRange(Range<Integer>[] fpsRanges) {
     Range currentFpsMax = fpsRanges[0];
 
-    // find max sum of fps ranges (min, max), for pixel shuld be: [240,240]
+    // find max sum of fps ranges (min, max), for pixel should be: [240,240]
     for (Range<Integer> fpsValue : fpsRanges) {
       final int maxLower =
           Integer.parseInt(currentFpsMax.getLower().toString());
@@ -664,7 +669,7 @@ public class Camera2VideoFragment extends Fragment
   }
 
   private void setUpCaptureRequestBuilder(CaptureRequest.Builder builder) {
-   // Range<Integer> fpsRange = getHighestFpsRange(mAvailableFps);
+   // Range<Integer> fpsRange = getHighestFpsRange(mAvailableHighSpeedFps);
    // builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange);
   }
 
@@ -714,6 +719,16 @@ public class Camera2VideoFragment extends Fragment
     return mOutputVideoFile.getAbsolutePath();
   }
 
+  private boolean isFpsSupported(int captureFps) {
+    for (Range<Integer> fpsValue : mAvailableFps) {
+      if (captureFps == fpsValue.getLower() || captureFps == fpsValue.getUpper()) {
+        return true;
+      }
+    }
+    Log.e(TAG, "Capture fps [" + captureFps + "] not supported");
+    return false;
+  }
+
   private void setUpMediaRecorder(
       final String recordingFilename,
       final int captureFps,
@@ -730,6 +745,7 @@ public class Camera2VideoFragment extends Fragment
     mMediaRecorder.setOutputFile(recordingFilename);
     mMediaRecorder.setVideoEncodingBitRate(VIDEO_ENCODING_BITRATE_BPS);
     Log.i(TAG, "Capture fps " + captureFps);
+    isFpsSupported(captureFps);
     mMediaRecorder.setVideoFrameRate(captureFps);
 
     int width = mCameraSize.getWidth();
