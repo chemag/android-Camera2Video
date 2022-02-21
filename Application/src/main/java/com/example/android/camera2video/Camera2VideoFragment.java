@@ -131,6 +131,7 @@ public class Camera2VideoFragment extends Fragment
   private final Semaphore mCameraOpenCloseLock = new Semaphore(1);
   private Range<Integer>[] mAvailableHighSpeedFps;
   private Range<Integer>[] mAvailableFps;
+  private Size[] mAvailableResolutions;
   private Integer mSensorOrientation;
   private CaptureRequest.Builder mPreviewBuilder;
   private IntentFilter mRecordIntent;
@@ -509,7 +510,8 @@ public class Camera2VideoFragment extends Fragment
 
       StreamConfigurationMap configs = characteristics.get(
           CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-      Size[] sizes = configs.getOutputSizes(MediaCodec.class);
+      mAvailableResolutions = configs.getOutputSizes(MediaCodec.class);
+      Log.i(TAG, "Available capture resolutions: " + Arrays.toString(mAvailableResolutions));
 
       mCameraSize = getRequestedVideoSize(
           map.getOutputSizes(SurfaceTexture.class),
@@ -729,6 +731,17 @@ public class Camera2VideoFragment extends Fragment
     return false;
   }
 
+  private boolean isResolutionSupported(int width, int height) {
+    for (Size res : mAvailableResolutions) {
+      if (Math.max(width, height) == Math.max(res.getWidth(), res.getHeight())
+          && Math.min(width, height) == Math.min(res.getWidth(), res.getHeight())) {
+        return true;
+      }
+    }
+    Log.e(TAG, "Resolution [" + width + "x" + height + "] not supported");
+    return false;
+  }
+
   private void setUpMediaRecorder(
       final String recordingFilename,
       final int captureFps,
@@ -755,7 +768,9 @@ public class Camera2VideoFragment extends Fragment
       width = captureVideoWidth;
       height = captureVideoHeight;
     }
-    Log.i(TAG, "Capture resolution: " + captureVideoWidth + "x" + captureVideoHeight);
+
+    Log.i(TAG, "Capture resolution: " + width + "x" + height);
+    isResolutionSupported(width, height);
     mMediaRecorder.setVideoSize(width, height);
     mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
     mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
