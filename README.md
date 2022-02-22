@@ -31,8 +31,25 @@ In some cases, you may need to point to a java 8 distribution:
 $ JAVA_HOME=/usr/lib/jvm/java-1.8.0 ./gradlew installDebug
 ```
 
-Once you have installed the app, you can add the required permissions either
-by accepting in the menu, or using this command:
+You may want to check whether your app has been installed successfully:
+
+```
+$ adb shell pm list packages |grep camera2
+package:com.example.android.camera2video
+```
+
+And uninstall the app.
+```
+$ adb shell pm uninstall com.example.android.camera2video
+Success
+```
+
+
+# 3. Recording
+
+When you run the command for the first time, you will have to accept
+the required permissions for the add. You can do that either by
+accepting in the menu, or using these commands:
 
 ```
 $ adb shell pm grant com.example.android.camera2video android.permission.CAMERA

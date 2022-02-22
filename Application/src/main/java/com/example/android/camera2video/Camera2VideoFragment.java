@@ -484,7 +484,7 @@ public class Camera2VideoFragment extends Fragment
     if (null == activity || activity.isFinishing()) {
       return;
     }
-    CameraManager manager =
+    CameraManager cameraManager =
         (CameraManager)activity.getSystemService(Context.CAMERA_SERVICE);
 
     try {
@@ -492,11 +492,16 @@ public class Camera2VideoFragment extends Fragment
       if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
         throw new RuntimeException("Time out waiting to lock camera opening.");
       }
-      String cameraId = manager.getCameraIdList()[0];
+
+      // make sure there is at least 1 camera available
+      if (cameraManager.getCameraIdList().length < 1) {
+        throw new RuntimeException("No Cameras Available.");
+      }
+      String cameraId = cameraManager.getCameraIdList()[0];
 
       // Choose the sizes for camera preview and video recording
       CameraCharacteristics characteristics =
-          manager.getCameraCharacteristics(cameraId);
+          cameraManager.getCameraCharacteristics(cameraId);
 
       mAvailableFps = characteristics.get(
           CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
@@ -538,7 +543,7 @@ public class Camera2VideoFragment extends Fragment
       configureTransform(width, height);
       mMediaRecorder = new MediaRecorder();
 
-      manager.openCamera(cameraId, mStateCallback, null);
+      cameraManager.openCamera(cameraId, mStateCallback, null);
     } catch (CameraAccessException e) {
       Toast.makeText(activity, "Cannot access the camera.", Toast.LENGTH_SHORT)
           .show();
@@ -768,6 +773,7 @@ public class Camera2VideoFragment extends Fragment
       width = captureVideoWidth;
       height = captureVideoHeight;
     }
+
     Log.i(TAG, "Capture resolution: " + width + "x" + height);
     isResolutionSupported(width, height);
     mMediaRecorder.setVideoSize(width, height);
